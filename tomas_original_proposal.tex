@@ -1,0 +1,190 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[left=3.2cm, right=3.2cm, top=3cm, bottom=3cm]{geometry}
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{booktabs}
+\usepackage{float}
+
+\title{New Rating System(s) for Chess Solving\thanks{This is version 2 of this paper.}}
+\author{Tom\'{a}\v{s} Peitl}
+
+\newcommand{\artg}{\mu_r}
+\newcommand{\ascr}{\mu_s}
+\newcommand{\vrtg}{\sigma_r^2}
+\newcommand{\cov}{q_{r,s}}
+%\newcommand{\E}{\mathcal{E}}
+\newcommand{\E}{E}
+
+\begin{document}
+\maketitle
+\abstract{It is by now folklore that the current rating system underestimates performance of top solvers.
+In fact, correction had to be applied in more than 75\% of the tournaments during the years 2010 through 2016.
+However, even with correction in place, we can still observe a leveling tendency---top solvers who regularly win tournaments can hardly maintain their rating, while weaker solvers often gain even with mediocre results.
+
+We approach the problem from a machine-learning perspective and propose two new rating systems to avert this trend.
+The first one is based on linear regression, and could almost be seen as a modification of the old system---it shares a number of its convenient properties.
+The second one uses logistic regression, and though more involved, it offers a different, possibly interesting interpretation.
+Applying the linear-regression-based system to the tournaments from 2010 to 2016, we can eliminate the need for correction in 60\% of the cases.
+Using the logistic-regression-based system, this number goes up to 80\%.
+}
+
+\section{Introduction}
+The current rating system for chess solving competitions uses the following, informally described scheme:
+For a tournament, let $\artg$ be the average rating of the participating solvers and let $\ascr$ be the average score achieved.
+Then, consider the line $L$ that crosses the points $(0,0)$ and $(\artg,\ascr)$.
+The expected result for a given rating $r$ is the unique $\E_r$ such that $(r,\E_r)$ lies on $L$, i.e. $\E_r=r\frac{\ascr}{\artg}$.
+Similarly, the rating performance for a given score $s$ is the unique $P_s$ such that $(P_s,s)$ lies on $L$, i.e. $P_s=s\frac{\artg}{\ascr}$.
+This scheme has a number of advantages, but it also has one drawback that has manifested itself repeatedly in the recent years---it tends to underestimate the performance of top-ranked solvers.
+
+In order to fight this effect, \emph{correction} was introduced, which rotates $L$ in such a way so as to make sure that if the top seed achieves at least the top score, they will not lose any rating.
+Nevertheless, even with correction we see an overvalued expectation for the strongest solvers, making them unable to maintain their ratings and leading to a gradual equalization. We believe the root cause is that the line $L$ is forced to cross $(0,0)$, or in other words, that the expected result for a solver with a rating of $0$ is $0$ points.
+While reasonable at first sight, in practice this rule seems to systematically underestimate the true expected result for weak solvers\footnote{A different, orthogonal problem that also causes solvers' ratings to gradually equalize is entry of new solvers into the system, who typically increase their rating over time and draw from the limited common pool---however, that is a much smaller issue and this paper does not address it}.
+We propose to look at the ``problem of determining ratings'' from a different perspective, and derive two new systems that do not suffer from deficiencies like this one.
+
+For a fixed tournament, we assume that there is a function $f$ that predicts a solver's expected score, and that the score of a solver with rating $R_i$ is $S_i=f(R_i)+\varepsilon_i$, where $\varepsilon_i$ is some (small) ``error''.
+This way, the task of predicting a solver's expected score naturally boils down to a machine-learning problem.
+The data are pairs $(R_i, S_i)$, $R_i$ being the rating of the $i$-th solver, $S_i$ being their score.
+The task is then to learn a function $f$ that takes a rating $r$ and outputs the expected result $f(r)$.
+It remains to specify the form which $f$ is allowed to take (i.e. the model), and then we can use standard machine-learning techniques to find a function that fits the data best.
+
+The first system we propose uses a linear model, i.e. fits a line to the data.
+As such, it enjoys almost all of the advantages of the old system:
+\begin{itemize}
+\item \textbf{Zero sum.} The sum of rating gains and losses is always zero.
+\item \textbf{Fairness.} Every point is worth the same amount of rating.
+\item \textbf{``Correctability''.} If necessary and desired, correction can be applied in exactly the same way as before, with exactly the same result.
+\item \textbf{Ease of use.} Even though slightly more complicated, the formula to calculate the fitted line is still simple enough.
+\end{itemize}
+Thanks to these properties, transferring to this system would be uncomplicated and painless.
+
+The second system uses a logistic model, i.e. fits a logistic function to the data.
+It no longer has the favorable properties the linear model had, but it has one interesting interpretation property.
+As $r$, i.e. the rating, approaches infinity, $f(r)$, i.e. the expected result, approaches $1$ (expressed as a fraction of total points).
+Similarly, as $r$ approaches negative infinity, $f(r)$ approaches $0$.
+This is in line with the observation that even if a very strong solver (or computer) with an astronomical rating entered a competition, they would still only be able to score up to the maximum amount of points.
+The expected result in the linear model (almost always) approaches infinity as the rating approaches infinity.
+
+We have evaluated these two systems on a total of $178$ tournaments from the years 2010 through 2016.
+Using the old system, correction had to be applied in $76\%$ of the cases.
+With linear regression, it was only necessary in $30\%$ of the cases.
+Logistic regression brought the number further down to $16\%$.
+
+With this paper, we propose to change the current rating system.
+We believe the linear model is a significant improvement that, thanks to similar properties, could be implemented without trouble.
+The logistic model, while perhaps not fully suited for application as is, should serve as inspiration for further discussion.
+
+\section{Machine Learning for Rating Calculation}
+The task of calculating rating changes from the results of a tournament can loosely be stated in the following way:
+Given a vector of ratings of the (rated) participating solvers $R=(R_1,\ldots,R_n)$ and a vector $S=(S_1,\ldots,S_n)$ of their respective scores, calculate a vector $\Delta=(\Delta_1,\ldots,\Delta_n)$ of rating changes, such that the new rating of the $i$-th player after the tournament will be $R_i+\Delta_i$.
+A common approach to this task is to instead calculate a vector $\E=(\E_1,\ldots,\E_n)$ of expected results and then set $\Delta=k(y-\E)$ for some coefficient $k$.
+Furthermore, the expected results are calculated not just for the ratings of the participants, but instead a function $f$ that takes a rating and outputs the expected result is computed, and then $\E=(f(R_1),\ldots,f(R_n))$.
+If the learned function $f$ is invertible, this has the additional benefit of being able to calculate the performance $P_s$ of a result $s$ as $P_s=f^{-1}(s)$.
+%In the current system this function happens to be (affine) linear, namely if $\bar{x}=\frac{1}{n}\sum_{i=1}^{n}x_i$ and $\bar{y}=\frac{1}{n}\sum_{i=1}^{n}y_i$ are the respective means, then
+%\[f(x)=x\frac{\bar{y}}{\bar{x}},\]
+
+This is an ideal situation for machine learning, a branch of statistics concerned with learning functions from data.
+In the following subsections, we will briefly outline two models for the function $f$ to be learned that we propose to use, namely linear and logistic regression.
+
+\subsection{Linear Regression}
+In linear regression, an affine linear function of the form $f(r)=ar+b$ is fitted to the data so that the following \emph{cost function} (also known as mean squared error) is minimized:
+\begin{align}
+J(a,b)=\frac{1}{n}\sum_{i=1}^n(S_i-(aR_i+b))^2.
+\end{align}
+
+It turns out that apart from using a generic optimization algorithm to minimize the cost function, one can directly compute the optimal values of $a$ and $b$.
+%Let $\hat{x}=\sum_{i=1}^n x_i$, $\hat{y}=\sum_{i=1}^n y_i$, $\langle x,y\rangle=\sum_{i=1}^n x_iy_i$, $\langle x,x\rangle=\sum_{i=1}^n x_i^2$.
+Let us define the following quantities:
+\begin{align}
+\artg&=\frac{1}{n}\sum_{i=1}^n R_i\qquad & \ascr&=\frac{1}{n}\sum_{i=1}^n S_i\\
+\vrtg&=\frac{\sum_{i=1}^n (R_i-\artg)^2}{n}\qquad & \cov&=\frac{1}{n}\sum_{i=1}^n R_iS_i
+\end{align}
+Then
+\begin{align}\label{linreg:ab}
+a=\frac{\cov-\artg\ascr}{\vrtg},\qquad\qquad\text{ and }\qquad\qquad b=\ascr-a\artg,
+\end{align}
+%\begin{align}
+%a=\frac{n\langle x,y\rangle-\hat{x}\hat{y}}{n\langle x,x\rangle-\hat{x}^2},\qquad\qquad\text{ and }\qquad\qquad b=\frac{\hat{y}\langle x,x\rangle-\hat{x}\langle x,y\rangle}{n\langle x,x\rangle-\hat{x}^2},
+%\end{align}
+noting that $\vrtg$ is non-zero as long as there are at least two solvers with different ratings.
+Now, $f(r)=ar+b$, and the expected result $E_i$, $i$-th solver is calculated by $E_i=f(R_i)=aR_i+b$.
+The performance $P_i$ of the $i$-th solver is given by $P_i=f^{-1}(S_i)=\frac{S_i-b}{a}$.
+% TODO: What if a=0 and a<0 ????
+
+Using linear regression has a number of advantages:
+\begin{itemize}
+\item It can be easily seen from (\ref{linreg:ab}) that the point $(\artg, \ascr)$ lies on the line represented by $f$ (i.e. $f(\artg)=\ascr$), which further means that the sum of gains and losses of rating is zero.
+\item If necessary, correction can be applied like before. However, as will be discussed later, correction is a much smaller issue than with the old system.
+\item Each extra point yields the same gain.
+\item Simple implementation.
+\item As a bonus, it is no longer necessary to subtract 1600 from each rating as before, one can simply fit to the original data.
+\end{itemize}
+
+\subsection{Unordered Linear Regression}
+An alternative to linear regression that spawned as a hybrid junction of linear regression and the system proposed by Bojan is to first sort both the $R_i$ and the $S_i$ in ascending order, and then apply linear regression to the new pair $(R_i',S_i')$ as described above.
+This modification has both some new advantages and drawbacks.
+
+Firstly, the coefficient $a$ computed this way will always be greater than zero (assuming there are at least two solvers with different results, otherwise $a=0$ in both versions).
+While in realistic scenarios even ordinary regression would typically output positive $a$, it could theoretically happen that $a$ would be negative if higher-rated solvers performed worse than lower-rated ones, and that would be a meaningless prediction.
+Secondly, this system would be less sensitive to noise in the data such as a strong solver performing extremely poorly.
+
+However, on the other hand, we lose the interpretation that we have for ordinary regressions, namely that we try to learn the function that predicts a solver's expected result based on his or her rating.
+We believe that this hybrid system is ultimately a good candidate, but would require some more analysis.
+
+\subsection{Logistic Regression}
+In logistic regression, a logistic function of the form $f(r)=\frac{1}{1+e^{-(ar+b)}}$ is fitted to the data so that the following cost function is minimized:
+\[J(a,b)=-\frac{1}{n}\sum_{i=1}^n \left[S_i\ln\left(\frac{1}{1+e^{-(aR_i+b)}}\right) + (1-S_i)\ln\left(1-\frac{1}{1+e^{-(aR_i+b)}}\right)\right].\]
+Since the logistic function only takes on values in the range $[0,1]$, it is necessary to first divide the scores by $S_{max}$, the maximum amount of points attainable.
+Furthermore, for good performance, it is advisable to normalize the ratings to some small range such as $[-1,1]$ as well.
+
+Unfortunately, unlike with linear regression, there is no closed-form expression for the optimal parameters $a$ and $b$, and one has to resort to some generic optimization algorithm.
+Though, such algorithms are widely available in many programming languages, so this is only a minor limitation.
+
+The logistic function lacks the good properties of a straight line, it does, however, have another interesting property (for $a\neq 0$):
+\[\lim_{r\rightarrow -\infty}\frac{1}{1+e^{-(ar+b)}}=0,\qquad\text{and}\qquad\lim_{r\rightarrow \infty}\frac{1}{1+e^{-(ar+b)}}=1,\]
+or in other words, when the rating $r$ approaches infinity on either side, the expected result $f(r)$ will approach $0$ and $1$ respectively.
+This seems to be a more realistic model of the expected result than a straight line, as even arbitrarily strong solvers can only obtain a bounded amount of points.
+
+We also remark that even though the sum of gains and losses in this system might not be zero, in practice it turned out to be close to zero and the inflation that it introduced was negligible.
+\section{Evaluation}
+In this section we report on the evaluation of these two new systems on the tournaments that took place between 2010 and 2016, a total of 178 tournaments.
+We compared the regression-based systems to the old system, and we mainly kept track of how often and also \emph{how much} correction had to be applied.
+The results are summarized in the table.
+The number of corrections is the total number of tournaments in which a correction would be necessary with each system, as determined by whether the top seed's expected result is higher than the winner's result.
+The percentage of corrections simply expresses this number as fraction of the total number of tournaments evaluated.
+The correction magnitude is the average amount of points by which the top seed's expected result exceeded the winner's result in cases where correction was needed.
+\begin{table}[H]
+\begin{center}
+\begin{tabular}{@{}llll@{}}
+\toprule
+&Old system&Linear regression&Logistic regression\\
+\midrule
+\#corrections&136 &53 &29 \\
+\%corrections&76.4\% &29.8\% &16.3\% \\
+correction magnitude&10.8 &3.8 &2.3 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+This table documents clearly that already using linear regression instead of the old system gets rid of roughly 60\% of corrections, and moreover, in cases where correction is needed, it is almost 3 times smaller on average.
+Logistic regression further amplifies this effect.
+\section{Conclusions and Discussion}
+Based on the experimental findings we propose to use the linear-regression-based model for rating calculation.
+While it's true that the logistic-regression-based one seems to perform even better, it has some peculiarities and would probably need more tweaking to be applicable.
+We discuss some of its drawbacks now.
+
+A potential problem might arise if a solver reaches full score (or 0 points), because the inverse logistic function would yield positive or negative infinity as their performance.
+This could be prevented for instance by making sure that we normalize in such a way that we have no zeroes or ones, i.e. by dividing by slightly more than the maximum points, or by limiting the maximum/minimum performance artificially.
+On the other hand, philosophically speaking, if a solver scores all points, there really is no good way of determining their true performance, so this is again in line with the intuition.
+
+Another question would be how to apply correction.
+Should we still rotate the function, or should we perhaps do something else, such as translate along the $y$ axis?
+A possibility might be to give up correction entirely since the logistic function always predicts an expected result between $0$ and maximum possible points, so we would not run into issues with expected results that are ``off the charts''.
+
+We also remark that the logistic function being fitted could be parameterized even more, essentially by turning the asymptotes $0$ and $1$ into additional parameters.
+We have not tried this since the simpler version seemed to perform well already.
+
+In light of all this, it seems best to use linear regression.
+It comes at a small cost since it has all of the advantages of the old system, and it performs much better with respect to the need for correction.
+There is the option to continue using correction as it is applied now even for linear regression, but as already discussed, it is probably better to adopt a new version, such as the one proposed by Bojan (not discussed here).
+However, this decision, as well as other questions pertaining to correction, can (and should) be decoupled from the base system used for the initial calculation.
+\end{document}
