@@ -1,0 +1,129 @@
+\documentclass[preprint,12pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{verbatim}
+
+\newcommand{\ch}{\v{c}}
+\newcommand{\tj}{\'c}
+\newcommand{\ndi}{\chi_m^e}
+\newcommand{\sd}{\chi_\Sigma^e}
+\newcommand{\E}{\mathcal{E}}
+
+\DeclareMathOperator{\MSE}{MSE}
+\DeclareMathOperator{\MAE}{MAE}
+\DeclareMathOperator{\avg}{avg}
+
+\begin{document}
+
+\begin{titlepage}
+\title{
+	{Statistical comparison of the proposed and the current rating system}
+	}
+\author{Bojan Vu\ch kovi\tj}
+\end{titlepage}
+\maketitle
+
+\section{Tables}
+
+We have tested behaviour of the proposed rating system
+on the available $95$ solving tournaments
+held from October 2015 till July 2018.
+Starting rating list is the official October 2015 rating list taken from the WFCC site.
+Statistics obtain for the current rating system are given in Table~\ref{old_system}.
+Value given in columns $\avg R_{k}$ designates the average rating of the $k$
+best rated active solvers from specified lists.
+
+\begin{table}[h]
+\begin{center}
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+Rating list & $\avg (R_{20})$ & $\avg (R_{50})$ & $\avg (R_{100})$ & $\avg (R_{200})$\\
+\hline
+October $2015$ & $2623.60$ & $2520.54$ & $2423.57$ & $2297.23$\\
+\hline
+January $2016$ & $2622.23$ & $2523.21$ & $2426.81$ & $2300.27$\\
+\hline
+July $2016$ & $2616.35$ & $2522.00$ & $2427.26$ & $2306.63$\\
+\hline
+January $2017$ & $2611.25$ & $2520.37$ & $2428.45$ & $2309.01$\\
+\hline
+July $2017$ & $2606.80$ & $2518.06$ & $2426.89$ & $2309.09$\\
+\hline
+January $2018$ & $2607.81$ & $2519.26$ & $2427.56$ & $2309.41$\\
+\hline
+July $2018$ & $2596.24$ & $2507.52$ & $2421.83$ & $2310.80$\\
+\hline
+\end{tabular}
+\caption{Behaviour of the current rating system}
+\label{old_system}
+\end{center}
+\end{table}
+
+Let $c_1$ be the corrective coefficient for solvers with rating below $2400$,
+and $c_2$ be the corrective coefficient for solvers with rating below $2200$.
+We have tested two variations for corrective coefficients $c_i$.
+The first is $c_1=2$ and $c_2=3$ (Table~\ref{new_system_1}),
+and the second is $c_1=2$ and $c_2=4$ (Table~\ref{new_system_2}).
+\begin{table}[h]
+\begin{center}
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+Rating list & $\avg (R_{20})$ & $\avg (R_{50})$ & $\avg (R_{100})$ & $\avg (R_{200})$\\
+\hline
+October $2015$ & $2623.60$ & $2520.54$ & $2423.57$ & $2297.23$\\
+\hline
+January $2016$ & $2620.33$ & $2522.31$ & $2424.30$ & $2300.99$\\
+\hline
+July $2016$ & $2617.65$ & $2526.44$ & $2433.43$ & $2313.07$\\
+\hline
+January $2017$ & $2609.95$ & $2524.51$ & $2439.99$ & $2319.90$\\
+\hline
+July $2017$ & $2604.32$ & $2520.90$ & $2436.51$ & $2320.13$\\
+\hline
+January $2018$ & $2602.18$ & $2518.11$ & $2436.64$ & $2322.74$\\
+\hline
+July $2018$ & $2595.75$ & $2511.49$ & $2434.26$ & $2327.32$\\
+\hline
+\end{tabular}
+\caption{Behaviour of the proposed rating system with $c_1=2$ and $c_2=3$}
+\label{new_system_1}
+\end{center}
+\end{table}
+
+\begin{table}[h]
+\begin{center}
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+Rating list & $\avg (R_{20})$ & $\avg (R_{50})$ & $\avg (R_{100})$ & $\avg (R_{200})$\\
+\hline
+October $2015$ & $2623.60$ & $2520.54$ & $2423.57$ & $2297.23$\\
+\hline
+January $2016$ & $2620.33$ & $2522.31$ & $2424.83$ & $2302.32$\\
+\hline
+July $2016$ & $2618.87$ & $2531.25$ & $2438.63$ & $2318.71$\\
+\hline
+January $2017$ & $2613.14$ & $2530.14$ & $2444.97$ & $2326.50$\\
+\hline
+July $2017$ & $2609.01$ & $2526.82$ & $2445.58$ & $2330.00$\\
+\hline
+January $2018$ & $2608.68$ & $2526.20$ & $2449.29$ & $2334.99$\\
+\hline
+July $2018$ & $2603.68$ & $2521.33$ & $2448.21$ & $2341.99$\\
+\hline
+\end{tabular}
+\caption{Behaviour of the proposed rating system with $c_1=2$ and $c_2=4$}
+\label{new_system_2}
+\end{center}
+\end{table}
+
+Though there is still a certain rating deflation for top $20$ and top $50$
+solvers shown in Table~\ref{new_system_1}, this might be a better solution
+than the one shown in Table~\ref{new_system_2}.
+There is an inflation of average ratings of top $100$ and solvers $200$,
+which, in the second case, might become a problem after a couple of years.
+After certain time, it is expected that rating deflation of top $20$
+solvers completely stops as ratings of solvers with lower rating increase.
+Thus, $c_1=2$ and $c_2=3$ might be a better choice from these two options.
+
+\end{document}
