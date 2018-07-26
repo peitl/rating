@@ -1,0 +1,95 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[left=3.2cm, right=3.2cm, top=3cm, bottom=3cm]{geometry}
+\usepackage{amsmath,amsfonts,amssymb}
+%\usepackage{booktabs}
+%\usepackage{float}
+
+\title{Sorted Linear Regression: A New Rating System for\\ Chess Solving}
+\author{Tom\'{a}\v{s} Peitl \and Bojan Vučković}
+
+\newcommand{\artg}{\mu_r}
+\newcommand{\ascr}{\mu_s}
+\newcommand{\vrtg}{\sigma_r}
+\newcommand{\cov}{q_{r,s}}
+%\newcommand{\E}{\mathcal{E}}
+\newcommand{\E}{E}
+
+\begin{document}
+\maketitle
+\abstract{
+It is by now folklore that the current rating system underestimates the ratings of top solvers.
+The two root causes of this behavior are overvalued expected results for high rated solvers, and a long-term deflation of rating caused by new solvers entering the zero-sum system.
+With this paper, we propose a new rating system that tackles both of these issues.
+}
+
+\section{Introduction}
+We view a rating system as consisting of three components: the initial calculation that takes the data from a tournament and produces expected results, the correction phase, in which, if necessary, the expected results are modified so as to avoid pathological cases such as expected results higher than maximum possible score, and finally, the calculation of the actual rating changes and performance ratings from these (modified) expected results.
+
+\section{The New System}
+In this section, we describe the ``raw'' algorithm, with the goal of providing a quick reference to implementers and others who are not concerned with the background details.
+Further intuition why the algorithm makes sense, as well as some mathematical properties and experimental results, can be found in the following sections.
+
+The calculation takes as input the two vectors $R=(R_1,\ldots,R_n)$, and $S=(S_1,\ldots,S_n)$, where $R_i$ is the rating of the $i$-th highest-rated participant, and $S_i$ is the achieved score of that participant.
+We define $S'=(S_1',\ldots,S_n')$ to be $S$ sorted, i.e. $S_i'$ is the $i$-th highest achieved score.
+We further define the following quantities:
+\begin{align*}
+\artg&=\frac{1}{n}\sum_{i=1}^n R_i\qquad & \ascr&=\frac{1}{n}\sum_{i=1}^n S_i=\frac{1}{n}\sum_{i=1}^n S_i'\\
+\vrtg^2&=\frac{\sum_{i=1}^n (R_i-\artg)^2}{n}\qquad & \cov'&=\frac{1}{n}\sum_{i=1}^n R_iS_i'
+\end{align*}
+
+The first phase of the calculation computes a vector $E=(E_1,\ldots,E_n)$ of \emph{initial} expected results in the following way:
+\begin{equation}\label{init_expected_res}
+E_i= (R_i - \artg) \frac{\cov'-\artg\ascr}{\vrtg^2} + \ascr
+\end{equation}
+This step assumes that $\vrtg\neq 0$, which holds whenever there are at least two participants with a different rating (so, in practice always).
+
+The correction phase consists of two steps.
+Let $S_{\max}$ be the maximum number of points obtainable in the given competition.
+Let $E_{\max}=E_1$ and $E_{\min}=E_n$ be the maximum and the minimum
+number of points expected by a solver,
+calculated by formula~\eqref{init_expected_res}.
+In other words, $E_{\max}$ and $E_{\min}$ are the expected results
+of the highest and lowest rated solver respectively.
+Let 
+\begin{equation}
+\delta = \max(E_{\max}-S_{\max}, -E_{\min}, 0).
+\end{equation}
+%When the average score in a competition is very high or very low, it is possible that the expected score of some solvers is more than $S_{\max}$ or less then $0$.
+In the first step of correction, we compute the vector $E'=(E_1',\ldots,E_n')$ of \emph{intermediate} expected results as:
+\begin{equation}
+E'_i = \min (E_{\max}-\delta, \max(E_i, E_{\min}+\delta)).
+\end{equation}
+This fixes the expected results that were negative or above $S_{\max}$.
+
+In the second step, we compute the vector $E''=(E_1'',\ldots,E_n'')$ of \emph{final} expected results as:
+\begin{equation}
+E''_i=E_i' + \delta',
+\end{equation}
+where $\delta'=\frac{1}{n}\sum_{i=1}^n E_i-E_i'$.
+This ensures that the sum of $E''$ will be the same as that of $E$, which in turn makes sure that the differences between scores and expected results sum up to zero.
+
+Finally, the rating change $C_i$ for the $i$-th participant is calculated as:
+\begin{equation}
+C_i = (S_i - E''_i)\times KT\times c_i,
+\end{equation}
+where $KT$ is the standard tournament coefficient (between $1$ to $4$), and $c_i$ is a solver-dependent coefficient based on the highest rating ever achieved by that solver ($H_i$), defined as:
+\begin{equation}
+c_i=\begin{cases}
+3&\text{ if } H_i<2200\\
+2&\text{ if } 2200\leq H_i<2400\\
+1&\text{ otherwise }
+\end{cases}
+\end{equation}
+
+The performance rating $P_i$ for the $i$-th participant is obtained by:
+\begin{equation}
+P_i = (S_i - \ascr) \frac{\vrtg^2}{\cov'-\artg\ascr} + \artg
+\end{equation}
+This assumes that there are at least two solvers who scored differently, otherwise it is not possible to calculate any meaningful performance rating.
+
+\section{Mathematical Background}
+
+\section{Experimental Evaluation}
+
+\end{document}
