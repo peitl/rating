@@ -1,7 +1,7 @@
 \documentclass{article}
 \usepackage[utf8]{inputenc}
-\usepackage[left=3.2cm, right=3.2cm, top=3cm, bottom=3cm]{geometry}
-\usepackage{amsmath,amsfonts,amssymb}
+\usepackage[left=3.5cm, right=3.5cm, top=3cm, bottom=3cm]{geometry}
+\usepackage{amsmath,amsfonts,amssymb,amsthm}
 %\usepackage{booktabs}
 %\usepackage{float}
 
@@ -11,9 +11,17 @@
 \newcommand{\artg}{\mu_r}
 \newcommand{\ascr}{\mu_s}
 \newcommand{\vrtg}{\sigma_r}
+\newcommand{\vscr}{\sigma_s}
 \newcommand{\cov}{q_{r,s}}
 %\newcommand{\E}{\mathcal{E}}
 \newcommand{\E}{E}
+
+\newcommand{\SR}{\texttt{SR}}
+\newcommand{\LR}{\texttt{LR}}
+\newcommand{\ND}{\texttt{ND}}
+
+\theoremstyle{definition}
+\newtheorem*{theorem}{Theorem}
 
 \begin{document}
 \maketitle
@@ -30,18 +38,19 @@ We view a rating system as consisting of three components: the initial calculati
 In this section, we describe the ``raw'' algorithm, with the goal of providing a quick reference to implementers and others who are not concerned with the background details.
 Further intuition why the algorithm makes sense, as well as some mathematical properties and experimental results, can be found in the following sections.
 
-The calculation takes as input the two vectors $R=(R_1,\ldots,R_n)$, and $S=(S_1,\ldots,S_n)$, where $R_i$ is the rating of the $i$-th highest-rated participant, and $S_i$ is the achieved score of that participant.
+The calculation takes as input the two vectors $R=(R_1,\ldots,R_n)$, and $S=(S_1,\ldots,S_n)$, where $R_i$ is the rating of the $i$-th highest-rated participant (as is customary, we ignore unrated participants), and $S_i$ is the achieved score of that participant.
 We define $S'=(S_1',\ldots,S_n')$ to be $S$ sorted, i.e. $S_i'$ is the $i$-th highest achieved score.
 We further define the following quantities:
 \begin{align*}
 \artg&=\frac{1}{n}\sum_{i=1}^n R_i\qquad & \ascr&=\frac{1}{n}\sum_{i=1}^n S_i=\frac{1}{n}\sum_{i=1}^n S_i'\\
-\vrtg^2&=\frac{\sum_{i=1}^n (R_i-\artg)^2}{n}\qquad & \cov'&=\frac{1}{n}\sum_{i=1}^n R_iS_i'
+\vrtg^2&=\frac{\sum_{i=1}^n (R_i-\artg)^2}{n}\qquad & \cov'&=\frac{1}{n}\sum_{i=1}^n R_iS_i-\artg\ascr'
 \end{align*}
 
 The first phase of the calculation computes a vector $E=(E_1,\ldots,E_n)$ of \emph{initial} expected results in the following way:
 \begin{equation}\label{init_expected_res}
-E_i= (R_i - \artg) \frac{\cov'-\artg\ascr}{\vrtg^2} + \ascr
+E_i= (R_i - \artg) \frac{\cov'}{\vrtg^2} + \ascr,
 \end{equation}
+or in other words, the initial expected results are given by the least-squares line fit to the data pairs $(R_i,S_i')$.
 This step assumes that $\vrtg\neq 0$, which holds whenever there are at least two participants with a different rating (so, in practice always).
 
 The correction phase consists of two steps.
@@ -60,7 +69,7 @@ In the first step of correction, we compute the vector $E'=(E_1',\ldots,E_n')$ o
 \begin{equation}
 E'_i = \min (E_{\max}-\delta, \max(E_i, E_{\min}+\delta)).
 \end{equation}
-This fixes the expected results that were negative or above $S_{\max}$.
+This makes sure that no expected result is negative or more than $S_{\max}$\footnote{We note that, in principle, we could also use the same method to cut off at a different value than $S_{\max}$, such as $S_1'$, the maximum achieved result}.
 
 In the second step, we compute the vector $E''=(E_1'',\ldots,E_n'')$ of \emph{final} expected results as:
 \begin{equation}
@@ -81,14 +90,84 @@ c_i=\begin{cases}
 1&\text{ otherwise }
 \end{cases}
 \end{equation}
+The goal of the coefficient $c_i$ is to combat long-term deflation, by ``creating'' rating points for lower-rated solvers.
 
 The performance rating $P_i$ for the $i$-th participant is obtained by:
 \begin{equation}
-P_i = (S_i - \ascr) \frac{\vrtg^2}{\cov'-\artg\ascr} + \artg
+P_i = (S_i - \ascr) \frac{\vrtg^2}{\cov'} + \artg
 \end{equation}
 This assumes that there are at least two solvers who scored differently, otherwise it is not possible to calculate any meaningful performance rating.
+Although extremely unlikely, if this happened, we would suggest to set $P_i=\artg$.
 
 \section{Mathematical Background}
+The idea for the proposed system spawned out of some observations about two other related systems.
+We will describe them here now, prove some relationships between them, and provide arguments why we think the proposed system is the best of them.
+We will only focus on the first phase of the systems, i.e. the calculation of the initial expected results, because the later phases are independent, and can be implemented in the same fashion for every system.
+
+The general framework for all of these rating systems (as well as for the old system) is that they take the data $(R_i,S_i)$ and compute the coefficients $a$ and $b$ of a linear function $f$ of the form $f(r)=ar+b$ (and hence we could call them \emph{linear systems}).
+This function then gives the expected result for a rating $r$ as $f(r)$.
+A common property of all of the systems happens to be that $f(\artg)=\ascr$, i.e. the expected result of the average rating is the average score, which means that the coefficient $b$ can always be computed from $a$ in the same way, by $b=\ascr-a\artg$.
+This is necessary (and sufficient) to make sure that the sum of gains and losses of rating is zero.
+Therefore, the main output of each of these systems is the coefficient $a$, i.e. the slope of the line $f$.
+
+\noindent
+Let us define the following additional quantities:
+\begin{align*}
+\vscr&=\sqrt{\frac{\sum_{i=1}^n (S_i - \ascr)^2}{n}}\\
+\cov&=\frac{1}{n}\sum_{i=1}^n R_iS_i -\artg\ascr\\
+\cov'&=\frac{1}{n}\sum_{i=1}^n R_iS_i' -\artg\ascr=\frac{\sum_{i=1}^n (R_i - \artg)(S_i' - \ascr)}{n},
+\end{align*}
+where for $\cov'$ we exploit two equivalent formulas for the covariance of $R$ and $S$.
+
+We will denote the proposed system by $\SR$ (for ``sorted regression''), and we define two other systems $\LR$ (for ``linear regression) and $\ND$ (for ``normal distribution'') by giving their respective slopes $a$:
+\begin{align}
+a_\SR&=\frac{\cov'-\artg\ascr}{\vrtg^2}\\
+a_\LR&=\frac{\cov-\artg\ascr}{\vrtg^2}\\
+a_\ND&=\frac{\vscr}{\vrtg}
+\end{align}
+The relationships between the rating systems are summarized by the following theorem.
+\begin{theorem}\label{thm:chain} For the slopes defined above, the following chain of inequalities holds:
+\begin{align}\label{eq:thm}
+a_\LR\leq a_\SR=|a_\SR|\leq a_\ND,
+\end{align}
+and furthermore, the last inequality is an equality if, and only if, the scores all lie on a single line, in which case this line is returned by each of the systems.
+\end{theorem}
+\begin{proof}
+The middle equality is simply a fancy compact way of saying that $a_\SR\geq 0$ (and consequently $a_\ND\geq 0$).
+In order to show that, we need to show that
+\[\frac{1}{n}\sum_{i=1}^n R_iS_i' - \artg\ascr\geq 0,\]
+but the left-hand side can be rewritten as
+\[\frac{1}{n^2}\sum_{1\leq i<j\leq n}(R_i-R_j)(S_i'-S_j'),\]
+and the inequality follows from the fact that each of the summands is non-negative (also, intuitively, if we're doing regression on non-decreasing data, the slope should be non-negative).
+
+To see that $a_\LR\leq a_\SR$ holds we need to check that $\cov\leq\cov'$.
+Sorting the $S_i$ is equivalent to swapping pairs of $(S_j, S_k)$ for some $j<k$ until the sequence is sorted.
+We will prove that no such swap will decrease the current value of $\cov$.
+Suppose $S'$ is obtained from $S$ by a single swap of $S_j$ and $S_k$, $j<k$.
+Then, for $j\neq i\neq k$ we have $S_i=S_i'$, and otherwise $S_j=S_k'$ and $S_k=S_j'$, and because we swapped, it must have been $S_j<S_k$.
+Therefore
+\begin{align*}
+\cov'-\cov&=\frac{1}{n}\sum_{i=1}^n R_iS_i' -\artg\ascr-\left(\frac{1}{n}\sum_{i=1}^n R_iS_i - \artg\ascr\right)=\\
+&=\frac{1}{n}\left(R_jS_j' + R_kS_k' - R_jS_j - R_kS_k\right)=\\
+&=\frac{1}{n}\left(R_jS_k + R_kS_j - R_jS_j - R_kS_k\right)=\frac{1}{n}(R_j-R_k)(S_k-S_j)\geq0,
+\end{align*}
+where the last inequality follows from $S_j<S_k$ and $R_j\geq R_k$ (because $j>k$ and the ratings are sorted).
+
+In order to prove the last inequality of (\ref{eq:thm}), we will use the second expression for $\cov'$.
+Since this expression is just the inner product of the vectors $\frac{R-\artg}{\sqrt n}$ and $\frac{S'-\artg}{\sqrt n}$, by applying the Cauchy-Schwarz inequality to these vectors we get
+$\cov'\leq \left\|\frac{R-\artg}{\sqrt n}\right\|\left\|\frac{S'-\ascr}{\sqrt n}\right\|=\vrtg\vscr$, and so
+\begin{align*}
+a_\SR=\frac{\cov'}{\vrtg^2}\leq\frac{\vrtg\vscr}{\vrtg^2}=\frac{\vscr}{\vrtg}=a_\ND
+\end{align*}
+Additionally, the CS-inequality is an equality if, and only if, one vector is a multiple of the other, i.e. if there is $c$ such that
+\[\frac{S'-\ascr}{\sqrt n}=c\frac{R-\artg}{\sqrt n},\]
+which is equivalent to
+\[S'=c(R-\artg)+\ascr,\]
+or in other words, the sorted scores all lie on a single line.
+In this case, this line will be returned by each of the three systems.
+\end{proof}
+With Theorem~\ref{thm:chain} in hand, we can take a look at the intuition behind these systems.
+
 
 \section{Experimental Evaluation}
 
